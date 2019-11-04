@@ -26,6 +26,12 @@ sys_wait(void)
   return wait();
 }
 
+int sys_waitx(void){  // taken from https://stackoverflow.com/questions/53383938/pass-struct-to-xv6-system-call
+  int *wtime,*rtime;
+  if(argptr(0,(char**)&wtime,sizeof(int))<0||argptr(1,(char**)&rtime,sizeof(int))<0) return -2;
+  return waitx(wtime, rtime);
+}
+
 int
 sys_kill(void)
 {
