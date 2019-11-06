@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "userproc.h"
 
 struct {
   struct spinlock lock;
@@ -111,6 +112,12 @@ found:
   cprintf("process with id: %d created at time %d\n",p->pid,p->ctime);
   p->rtime = 0;
   p->etime = 1073741824;
+  p->numrun = 0;
+  p->priority = 60; // default is 60
+  p->pqlvl = 2; //default
+  p->canruntill = 100000;
+  p->lastrun = -1;
+  for(int i=0;i<5;i++) p->ticks[i]=0;
   sp -= sizeof *p->context;
   p->context = (struct context*)sp;
   memset(p->context, 0, sizeof *p->context);
@@ -267,6 +274,7 @@ exit(void)
 
   curproc->etime = ticks;
   cprintf("process with pid %d ended at %d and ran for %d clocks\n",curproc->pid,curproc->etime,curproc->rtime);
+  cprintf("Process ended at pqlvl %d and priority %d\n",curproc->pqlvl,curproc->priority);
   // Jump into the scheduler, never to return.
   curproc->state = ZOMBIE;
   sched();
@@ -363,6 +371,32 @@ int waitx(int* wtime, int* rtime){
   }
 }
 
+// DEBUG:
+void printstate(struct proc *p){
+  cprintf("PID: %d, CTIME : %d , STATE: ",p->pid,p->ctime);
+  switch(p->state){
+  	case UNUSED:
+  		cprintf("%s", "UNUSED\n");
+  		break;
+  	case EMBRYO:
+  		cprintf("%s", "EMBRYO\n");
+  		break;
+  	case SLEEPING:
+  		cprintf("%s", "SLEEPING\n");
+  		break;
+  	case RUNNABLE:
+  		cprintf("%s", "RUNNABLE\n");
+  		break;
+  	case RUNNING:
+  		cprintf("%s", "RUNNING\n");
+  		break;
+  	case ZOMBIE:
+  		cprintf("%s", "ZOMBIE\n");
+  		break;
+  }
+}
+//
+
 
 //PAGEBREAK: 42
 // Per-CPU process scheduler.
@@ -386,22 +420,104 @@ scheduler(void)
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-      if(p->state != RUNNABLE)
-        continue;
 
+      #ifdef DEFAULT // DEFAULT MODE
+        if(p->state != RUNNABLE) continue;
+      #else
+      #ifdef FCFS
+        if(p->state != RUNNABLE) continue; // first get some run-able process, loop and select min c time runnable process.
+        for(struct proc *p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++) if(p!=p1 && p1->pid>1){
+          if((p1->state == RUNNABLE) && ((p->ctime) > (p1->ctime))){
+            p=p1;
+            // cprintf("FCFS: PROCESS pid %d has less ctime than PROCESS pid %d\n",p1->pid,p->pid);
+          }
+        }
+        if(p->pid>2){
+          cprintf("PROCESS TABLE : \n");
+          for(struct proc *p1 = ptable.proc;p1<&ptable.proc[NPROC];p1++) if(p1->pid>2) {
+            // if(p1->state==RUNNABLE || p1->state==RUNNING || p1->state==SLEEPING) runnable=1;
+            printstate(p1);
+          }
+          cprintf("END PROCESS TABLE\n");
+          cprintf("PROCESS SENT FOR EXECUTION: %d\n",p->pid);
+        }
+      #else
+      #ifdef PRIORITY
+        struct proc *lp = 0;
+        if(p->state != RUNNABLE) continue;
+        lp = p;
+        for(struct proc *p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++)
+          if((p1->state == RUNNABLE) && (lp->priority > p1->priority || (((lp->priority)==(p1->priority))&&((lp->rtime)>(p1->rtime))))) lp = p1;
+        p=lp;
+      #else
+      #ifdef MLFQ
+        struct proc *lp = 0;
+        if(p->state != RUNNABLE) continue;
+        lp = p;
+        for(struct proc *p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++)
+          if((p1->state == RUNNABLE) && (lp->pqlvl > p1->pqlvl)) lp = p1;
+        p=lp;
+      
+      #endif
+      #endif
+      #endif
+      #endif
+
+      #ifdef FCFS
+      int keep=0;
+      if(p->pid>2) keep=1;
+      do{
+      #endif
       // Switch to chosen process.  It is the process's job
       // to release ptable.lock and then reacquire it
       // before jumping back to us.
       c->proc = p;
+      p->numrun++;
+      x1 = p->rtime;
+      // cprintf("%d ran once more, totally %d\n",p->pid, p->numrun);
       switchuvm(p);
       p->state = RUNNING;
-
+      int tcrt[] = {1,2,4,8};
+      p->canruntill = tcrt[p->pqlvl];
       swtch(&(c->scheduler), p->context);
       switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
       c->proc = 0;
+      x1 = p->rtime - x1;
+      p->lastrun = ticks;
+
+      // if(x1)
+        // cprintf("%d RAN FOR %d WITH %d priority TIME IN %d QUEUE  %d %d %d %d %d\n",p->pid,x1,p->priority,p->pqlvl,p->ticks[0],p->ticks[1],p->ticks[2],p->ticks[3],p->ticks[4]);
+
+      #ifdef FCFS
+        if(p->pid>1){
+          // cprintf("PROCESS RUNNING : ");
+          // printstate(p);
+          if(p->state==RUNNABLE) keep=1;
+          // if its completely non pre-emptive, add condition : || p->state==SLEEPING.
+          else keep--;
+        }
+      }while(keep==1);
+      #endif
+
+      #ifdef MLFQ
+        if(p->rtime>10 && p->pqlvl==0) p->pqlvl=1;
+        if(p->rtime>50&&p->pqlvl==1) p->pqlvl=2;
+        if(p->rtime>100&&p->pqlvl==2) p->pqlvl=3;
+        if(p->rtime>200&&p->pqlvl==3) p->pqlvl=4;
+        int wt = ticks-(p->ctime);
+        if(wt>5000) p->pqlvl=0;
+        else if((wt>2000)&&((p->pqlvl)>1)) p->pqlvl=1;
+        else if((wt>1000)&&((p->pqlvl)>2)) p->pqlvl=2;
+        else if((wt>600)&&((p->pqlvl)>3)) p->pqlvl=3;
+
+        // if(x1>1&&p->pqlvl==0) p->pqlvl=1;
+        // if(x1>2&&p->pqlvl==1) p->pqlvl=2;
+        // if(x1>4&&p->pqlvl==2) p->pqlvl=3;
+        // if(x1>8&&p->pqlvl==3) p->pqlvl=4;
+      #endif
     }
     release(&ptable.lock);
 
@@ -591,6 +707,62 @@ procdump(void)
 void uprtime() {
   struct proc *p;
   acquire(&ptable.lock);
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++) if(p->state == RUNNING) p->rtime++;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state == RUNNING){
+      p->rtime++;
+      p->ticks[p->pqlvl]++; 
+      #ifdef MLFQ
+        p->canruntill--;
+      #endif
+    }
+    #ifdef MLFQ
+    else {
+      int wt=ticks;
+      wt-=(p->lastrun);
+      if(p->pqlvl==1 && wt>100) p->pqlvl=1;
+      if(p->pqlvl==3 && wt>500) p->pqlvl=2;
+      if(p->pqlvl==4 && wt>1000) p->pqlvl=3;
+    }
+    #endif
+  }
   release(&ptable.lock);
+}
+
+// Change Process priority
+int set_priority(int pid, int priority){
+  acquire(&ptable.lock); int rp=-1;
+  for(struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid) {
+      rp=p->priority;
+      p->priority = priority;
+      break;
+    }
+  }
+  release(&ptable.lock);
+  return rp;
+}
+
+// userproc
+int getpinfo(int pid,struct proc_stat * ps){
+  for(struct proc *p = ptable.proc; p < &ptable.proc[NPROC]; p++) if(pid==(p->pid)){
+    ps->pid=pid;
+    ps->runtime = p->rtime;
+    ps->current_queue = p->pqlvl;
+    ps->num_run = p->numrun;
+    for(int i=0;i<5;i++) ps->ticks[p->pqlvl]=p->ticks[p->pqlvl];
+    uproc.pid = ps->pid;
+    uproc.runtime = p->rtime;
+    uproc.current_queue = p->pqlvl;
+    uproc.num_run = p->numrun;
+
+    // cprintf("%d %d %d  %x\n",p->numrun,ps->num_run,uproc.num_run,ps);
+    // int ticks[5];
+    return 0;
+  }
+  return -1;
+}
+
+int check(){
+  cprintf("print from here\n");
+  return 1;
 }

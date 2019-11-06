@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "userproc.h"
 
 int
 sys_fork(void)
@@ -32,6 +33,12 @@ int sys_waitx(void){  // taken from https://stackoverflow.com/questions/53383938
   return waitx(wtime, rtime);
 }
 
+int sys_set_priority(void){
+  int pid,priority;
+  if(argptr(0,(char**)&pid,sizeof(int))<0||argptr(1,(char**)&priority,sizeof(int))<0) return -2;
+  return set_priority(pid,priority);
+}
+
 int
 sys_kill(void)
 {
@@ -40,6 +47,16 @@ sys_kill(void)
   if(argint(0, &pid) < 0)
     return -1;
   return kill(pid);
+}
+
+int sys_getpinfo(void){
+  int pid; struct proc_stat *ps;
+  if(argptr(0,(char**)&pid,sizeof(int))<0||argptr(1,(char**)&ps,sizeof(struct proc_stat))<0) return -2;
+  return getpinfo(pid,ps);
+}
+
+int sys_getticks(void){
+  return ticks;
 }
 
 int

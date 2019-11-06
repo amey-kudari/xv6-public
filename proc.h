@@ -53,6 +53,12 @@ struct proc {
   int ctime;                   // process creation time
   int etime;                   // process end time
   int rtime;                   // process run time
+  int priority;                // process priority [0-100] [60 default]
+  int pqlvl;                   // priority queue assigned to process.
+  int canruntill;              // if <=0, pre-empt;
+  int numrun;                  // number of times it ran
+  int ticks[5];                // number of ticks on each queue
+  int lastrun;                 // last time it ran
 };
 
 // Process memory is laid out contiguously, low addresses first:

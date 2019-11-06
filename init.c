@@ -18,7 +18,22 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
-
+  
+  #ifdef DEFAULT
+    printf(1, "SCHEDULER : DEFAULT\n");
+  #else
+  #ifdef PRIORITY
+    printf(1, "SCHEDULER : PRIORITY\n");
+  #else
+  #ifdef FCFS
+    printf(1, "SCHEDULER : FCFS\n");
+  #else
+  #ifdef MLFQ
+    printf(1, "SCHEDULER : MLFQ\n");
+  #endif
+  #endif
+  #endif
+  #endif
   for(;;){
     printf(1, "init: starting sh\n");
     pid = fork();
