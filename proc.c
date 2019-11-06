@@ -114,7 +114,7 @@ found:
   p->etime = 1073741824;
   p->numrun = 0;
   p->priority = 60; // default is 60
-  p->pqlvl = 2; //default
+  p->pqlvl = 0; //default
   p->canruntill = 100000;
   p->lastrun = -1;
   for(int i=0;i<5;i++) p->ticks[i]=0;
@@ -719,8 +719,9 @@ void uprtime() {
     else {
       int wt=ticks;
       wt-=(p->lastrun);
-      if(p->pqlvl==1 && wt>100) p->pqlvl=1;
-      if(p->pqlvl==3 && wt>500) p->pqlvl=2;
+      if(p->pqlvl==1 && wt>100) p->pqlvl=0;
+      if(p->pqlvl==2 && wt>300) p->pqlvl=1;
+      if(p->pqlvl==3 && wt>600) p->pqlvl=2;
       if(p->pqlvl==4 && wt>1000) p->pqlvl=3;
     }
     #endif

@@ -189,6 +189,7 @@ UPROGS=\
 	_testprog\
 	_testprog1\
 	_setp\
+	_ps\
 
 fs.img: mkfs README $(UPROGS)
 	./mkfs fs.img README $(UPROGS)
