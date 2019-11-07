@@ -18,7 +18,7 @@ main(void)
   }
   dup(0);  // stdout
   dup(0);  // stderr
-  
+
   #ifdef DEFAULT
     printf(1, "SCHEDULER : DEFAULT\n");
   #else
@@ -34,6 +34,8 @@ main(void)
   #endif
   #endif
   #endif
+
+  // printf(1, "running with %d processors\n",(int)NCPU);
   for(;;){
     printf(1, "init: starting sh\n");
     pid = fork();

@@ -433,13 +433,13 @@ scheduler(void)
           }
         }
         if(p->pid>2){
-          cprintf("PROCESS TABLE : \n");
-          for(struct proc *p1 = ptable.proc;p1<&ptable.proc[NPROC];p1++) if(p1->pid>2) {
+          // cprintf("PROCESS TABLE : \n");
+          // for(struct proc *p1 = ptable.proc;p1<&ptable.proc[NPROC];p1++) if(p1->pid>2) {
             // if(p1->state==RUNNABLE || p1->state==RUNNING || p1->state==SLEEPING) runnable=1;
-            printstate(p1);
-          }
-          cprintf("END PROCESS TABLE\n");
-          cprintf("PROCESS SENT FOR EXECUTION: %d\n",p->pid);
+            // printstate(p1);
+          // }
+          // cprintf("END PROCESS TABLE\n");
+          // cprintf("PROCESS SENT FOR EXECUTION: %d\n",p->pid);
         }
       #else
       #ifdef PRIORITY
