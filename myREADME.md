@@ -62,3 +62,6 @@
 - Hence FCFS finishes processes one by one completely, default round robin finishes then together, PBS finishes processes that have same priority together but first finishes all of same priority and then goes to a lower one. MLFQ makes sure the shorter processes finish quickly and no process takes too long (time slicing). also MLFQ unlike PBS makes sure processes dont wait for too long as they get pushed up the queue.
 
 > Amey Kudari
+> link to repo: https://github.com/amey-kudari/xv6-public
+> MLFQ with queues implemented partially in branch QUEUES
+
