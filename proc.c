@@ -454,8 +454,10 @@ scheduler(void)
         struct proc *lp = 0;
         if(p->state != RUNNABLE) continue;
         lp = p;
-        for(struct proc *p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++)
-          if((p1->state == RUNNABLE) && (lp->pqlvl > p1->pqlvl)) lp = p1;
+        for(struct proc *p1 = ptable.proc; p1 < &ptable.proc[NPROC]; p1++){
+          if((p1->state == RUNNABLE) && ((lp->pqlvl > p1->pqlvl) || (lp->pqlvl==4 && p1->pqlvl==4 && p1->rtime<lp->rtime))) lp = p1;
+        }
+
         p=lp;
       
       #endif
@@ -750,7 +752,7 @@ int getpinfo(int pid,struct proc_stat * ps){
     ps->runtime = p->rtime;
     ps->current_queue = p->pqlvl;
     ps->num_run = p->numrun;
-    for(int i=0;i<5;i++) ps->ticks[p->pqlvl]=p->ticks[p->pqlvl];
+    for(int i=0;i<5;i++) ps->ticks[i]=p->ticks[i];
     uproc.pid = ps->pid;
     uproc.runtime = p->rtime;
     uproc.current_queue = p->pqlvl;
